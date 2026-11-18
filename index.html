@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wyoming Tick Data Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --primary-teal: #15534c;
+      --primary-teal-hover: #0f3f3a;
+      --border-gray: #e2e5e9;
+      --text-dark: #212529;
+      --text-muted: #5a626a;
+      --bg-light: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text-dark);
+      background-color: #f8f9fa;
+      line-height: 1.5;
+    }
+
+    /* Top Navbar */
+    .navbar {
+      background-color: var(--primary-teal);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      height: 58px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+
+    .navbar-brand {
+      font-size: 21px;
+      font-weight: 400;
+      margin-right: 28px;
+      letter-spacing: 0.2px;
+    }
+
+    .nav-links {
+      display: flex;
+      list-style: none;
+      height: 100%;
+    }
+
+    .nav-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 14.5px;
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      height: 100%;
+      transition: color 0.15s;
+    }
+
+    .nav-item:hover {
+      color: #ffffff;
+    }
+
+    .nav-item.active {
+      color: #ffffff;
+      font-weight: 600;
+      border-bottom: 3px solid #ffffff;
+    }
+
+    .nav-item .caret {
+      font-size: 10px;
+      margin-left: 6px;
+    }
+
+    /* Main Container Grid */
+    .dashboard-container {
+      max-width: 1440px;
+      margin: 18px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    /* Card Base Style */
+    .card {
+      background: var(--bg-light);
+      border: 1px solid var(--border-gray);
+      border-radius: 6px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+    }
+
+    /* Left Sidebar Panel */
+    .sidebar-card {
+      height: calc(100vh - 96px);
+      min-height: 620px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-header {
+      display: flex;
+      border-bottom: 1px solid var(--border-gray);
+      padding: 0 16px;
+      background: #fff;
+    }
+
+    .tab-btn {
+      padding: 14px 4px;
+      margin-right: 22px;
+      font-size: 14.5px;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .tab-btn.active {
+      color: var(--text-dark);
+      font-weight: 600;
+      border-bottom: 2px solid #212529;
+    }
+
+    .sidebar-content {
+      padding: 22px 24px;
+      overflow-y: auto;
+      flex: 1;
+      font-size: 14.5px;
+    }
+
+    /* Custom Scrollbar for Sidebar */
+    .sidebar-content::-webkit-scrollbar {
+      width: 10px;
+    }
+    .sidebar-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .sidebar-content::-webkit-scrollbar-thumb {
+      background: #a8a8a8;
+      border-radius: 4px;
+      border: 2px solid #f1f1f1;
+    }
+
+    .sidebar-content h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      line-height: 1.35;
+    }
+
+    .last-updated {
+      color: var(--text-muted);
+      font-size: 13.5px;
+      margin-bottom: 20px;
+    }
+
+    .info-block {
+      margin-bottom: 18px;
+      color: #2b3035;
+    }
+
+    .info-block strong {
+      font-weight: 700;
+      color: #111;
+    }
+
+    /* Right Column Layout */
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Top KPI Row */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: 330px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .kpi-card {
+      padding: 16px 18px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: #212529;
+    }
+
+    .big-stat-box {
+      background-color: var(--primary-teal);
+      color: #ffffff;
+      border-radius: 4px;
+      height: 112px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 400;
+    }
+
+    /* Pathogen Card */
+    .pathogen-card {
+      padding: 18px 22px;
+    }
+
+    .pathogen-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 24px;
+      align-items: start;
+      margin-top: 8px;
+    }
+
+    .pathogen-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pathogen-btn {
+      padding: 10px 16px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--primary-teal);
+      font-size: 14.5px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s;
+    }
+
+    .pathogen-btn:hover {
+      background-color: #f0f4f3;
+    }
+
+    .pathogen-btn.active {
+      background-color: var(--primary-teal);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .pathogen-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .pathogen-stat-box {
+      width: 100%;
+      background-color: var(--primary-teal);
+      color: #ffffff;
+      height: 98px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+
+    .pathogen-desc {
+      font-size: 14.5px;
+      color: var(--text-dark);
+      max-width: 420px;
+    }
+
+    /* Map Card */
+    .map-card {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border-gray);
+      height: 52px;
+    }
+
+    .map-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .map-tabs {
+      display: flex;
+      height: 100%;
+    }
+
+    .map-tab {
+      padding: 0 12px;
+      margin-left: 8px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 14px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      height: 100%;
+    }
+
+    .map-tab.active {
+      color: var(--text-dark);
+      font-weight: 600;
+      border-bottom: 2px solid #212529;
+    }
+
+    .map-body {
+      padding: 18px;
+      position: relative;
+    }
+
+    #wyoming-map {
+      width: 100%;
+      height: 360px;
+      background: #e9ecef;
+      border-radius: 2px;
+      z-index: 1;
+    }
+
+    /* Legend Overlay */
+    .map-legend {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      background: rgba(255, 255, 255, 0.94);
+      padding: 10px 14px;
+      border-radius: 5px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .legend-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #333;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2px;
+      color: #444;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      margin-right: 8px;
+      display: inline-block;
+      opacity: 0.85;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-container, .kpi-row {
+        grid-template-columns: 1fr;
+      }
+      .sidebar-card {
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <div class="navbar-brand">Wyoming Tick Data Dashboard</div>
+    <ul class="nav-links">
+      <li class="nav-item active">Home</li>
+      <li class="nav-item">Explore Data <span class="caret">▼</span></li>
+      <li class="nav-item">Data Sources &amp; Methodology <span class="caret">▼</span></li>
+    </ul>
+  </header>
+
+  <!-- Main Dashboard Grid -->
+  <main class="dashboard-container">
+
+    <!-- Left Sidebar -->
+    <section class="card sidebar-card">
+      <div class="tab-header">
+        <button class="tab-btn active" onclick="switchSidebarTab('welcome', this)">Welcome Page</button>
+        <button class="tab-btn" onclick="switchSidebarTab('contributors', this)">Contributors</button>
+      </div>
+
+      <div id="tab-welcome" class="sidebar-content">
+        <h2>Welcome to the Wyoming Tick Data Dashboard</h2>
+        <div class="last-updated">Data last updated: November 16, 2026</div>
+
+        <div class="info-block">
+          <strong>Data Disclaimer:</strong> Data are added as they become available. Tick collection records may appear before pathogen testing is complete. Because collection efforts vary across Wyoming, little or no data does not mean ticks, pathogens, or health risks are absent.
+        </div>
+
+        <div class="info-block">
+          <strong>Important Note:</strong> Only ticks originating from Wyoming are included in this data dashboard. Records associated with out-of-state travel will be available in the data download once that is published.
+        </div>
+
+        <div class="info-block">
+          <strong>Explore the Data:</strong> Explore Wyoming tick collections, species distributions, and pathogen testing data from 2023 to the present using the navigation tabs above.
+        </div>
+      </div>
+
+      <div id="tab-contributors" class="sidebar-content" style="display: none;">
+        <h2>Dashboard Contributors &amp; Partners</h2>
+        <div class="info-block">
+          <strong>Wyoming Department of Health:</strong> Infectious Disease Epidemiology Unit &amp; Public Health Laboratory.
+        </div>
+        <div class="info-block">
+          <strong>University of Wyoming:</strong> Department of Ecosystem Science and Management &amp; Vector-Borne Disease Surveillance Lab.
+        </div>
+        <div class="info-block">
+          <strong>Field Partners:</strong> County Weed &amp; Pest Districts, National Park Service, and regional veterinary clinics across Wyoming.
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column -->
+    <div class="right-column">
+
+      <!-- Top KPI Cards -->
+      <div class="kpi-row">
+        <!-- Total Ticks Card -->
+        <section class="card kpi-card">
+          <div class="card-title">Total Ticks Collected</div>
+          <div class="big-stat-box">7380</div>
+        </section>
+
+        <!-- Positive Pathogen Collections Card -->
+        <section class="card pathogen-card">
+          <div class="card-title">Positive Pathogen Collections</div>
+          <div class="pathogen-grid">
+            <div class="pathogen-selector">
+              <button class="pathogen-btn active" onclick="selectPathogen('ctfv', this)">CTFV</button>
+              <button class="pathogen-btn" onclick="selectPathogen('rmsf', this)">RMSF</button>
+              <button class="pathogen-btn" onclick="selectPathogen('tularemia', this)">Tularemia</button>
+            </div>
+            <div class="pathogen-display">
+              <div id="pathogen-count" class="pathogen-stat-box">44</div>
+              <div id="pathogen-desc" class="pathogen-desc">
+                Colorado Tick Fever is a tick-borne disease caused by Colorado Tick Fever Virus (CTFV).
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Data at a Glance Map Card -->
+      <section class="card map-card">
+        <div class="map-header">
+          <div class="map-title">Data at a Glance</div>
+          <div class="map-tabs">
+            <button class="map-tab active" onclick="switchMapLayer('effort', this)">Effort</button>
+            <button class="map-tab" onclick="switchMapLayer('ticks', this)">Ticks</button>
+            <button class="map-tab" onclick="switchMapLayer('pathogens', this)">Pathogens</button>
+          </div>
+        </div>
+
+        <div class="map-body">
+          <div id="wyoming-map"></div>
+
+          <div class="map-legend">
+            <div id="legend-title" class="legend-title">Total Survey Time (hrs)</div>
+            <div class="legend-item"><span class="legend-color" style="background:#f7fbff;"></span>0.0 – 0.5</div>
+            <div class="legend-item"><span class="legend-color" style="background:#e3eef8;"></span>0.5 – 1.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#cfe1f2;"></span>1.0 – 5.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#b5d4e9;"></span>5.0 – 10.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#93c3df;"></span>10.0 – 15.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#6daed5;"></span>15.0 – 100.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#4b97c9;"></span>100.0 – 200.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#2f7ebc;"></span>200.0 – 300.0</div>
+            <div class="legend-item"><span class="legend-color" style="background:#b0b0b0;"></span>NA</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Leaflet JS for Interactive Map -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1. Sidebar Tab Switching
+    function switchSidebarTab(tabName, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-welcome').style.display = tabName === 'welcome' ? 'block' : 'none';
+      document.getElementById('tab-contributors').style.display = tabName === 'contributors' ? 'block' : 'none';
+    }
+
+    // 2. Interactive Pathogen Selector
+    const pathogenData = {
+      ctfv: {
+        count: '44',
+        desc: 'Colorado Tick Fever is a tick-borne disease caused by Colorado Tick Fever Virus (CTFV).'
+      },
+      rmsf: {
+        count: '19',
+        desc: 'Rocky Mountain Spotted Fever (RMSF) is a bacterial disease spread by the Rocky Mountain wood tick.'
+      },
+      tularemia: {
+        count: '12',
+        desc: 'Tularemia is a rare infectious disease caused by the bacterium Francisella tularensis.'
+      }
+    };
+
+    function selectPathogen(key, btn) {
+      document.querySelectorAll('.pathogen-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pathogen-count').textContent = pathogenData[key].count;
+      document.getElementById('pathogen-desc').textContent = pathogenData[key].desc;
+    }
+
+    // 3. Leaflet Map Setup (Centered on Wyoming)
+    const map = L.map('wyoming-map', {
+      center: [42.85, -107.55],
+      zoom: 6,
+      scrollWheelZoom: false
+    });
+
+    // Light CartoDB Positron basemap matching the screenshot
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Simplified Wyoming County Polygons to match visual choropleth
+    const wyomingCounties = [
+      { name: "Teton", color: "#5c88b8", coords: [[44.66, -111.05], [44.66, -110.05], [43.50, -110.05], [43.50, -111.05]] },
+      { name: "Park", color: "#8cb9d8", coords: [[45.00, -110.05], [45.00, -108.60], [43.80, -108.60], [43.80, -110.05]] },
+      { name: "Sublette", color: "#85b6d8", coords: [[43.50, -110.50], [43.50, -109.10], [42.25, -109.10], [42.25, -110.50]] },
+      { name: "Lincoln", color: "#9dc6e2", coords: [[43.50, -111.05], [43.50, -110.50], [41.55, -110.50], [41.55, -111.05]] },
+      { name: "Sweetwater", color: "#8cb9d8", coords: [[42.25, -110.05], [42.25, -107.50], [41.00, -107.50], [41.00, -110.05]] },
+      { name: "Uinta", color: "#9dc6e2", coords: [[41.55, -111.05], [41.55, -110.05], [41.00, -110.05], [41.00, -111.05]] },
+      { name: "Big Horn", color: "#cfe1f2", coords: [[45.00, -108.60], [45.00, -107.30], [44.10, -107.30], [44.10, -108.60]] },
+      { name: "Sheridan", color: "#cfe1f2", coords: [[45.00, -107.30], [45.00, -106.00], [44.55, -106.00], [44.55, -107.30]] },
+      { name: "Johnson", color: "#b0b0b0", coords: [[44.55, -107.30], [44.55, -106.00], [43.50, -106.00], [43.50, -107.30]] },
+      { name: "Campbell", color: "#f7fbff", coords: [[45.00, -106.00], [45.00, -105.05], [43.50, -105.05], [43.50, -106.00]] },
+      { name: "Crook", color: "#f7fbff", coords: [[45.00, -105.05], [45.00, -104.05], [44.15, -104.05], [44.15, -105.05]] },
+      { name: "Weston", color: "#f7fbff", coords: [[44.15, -105.05], [44.15, -104.05], [43.50, -104.05], [43.50, -105.05]] },
+      { name: "Fremont", color: "#f7fbff", coords: [[43.80, -109.10], [43.80, -107.30], [42.25, -107.30], [42.25, -109.10]] },
+      { name: "Natrona", color: "#f7fbff", coords: [[43.50, -107.30], [43.50, -106.00], [42.40, -106.00], [42.40, -107.30]] },
+      { name: "Converse", color: "#f7fbff", coords: [[43.50, -106.00], [43.50, -104.90], [42.40, -104.90], [42.40, -106.00]] },
+      { name: "Niobrara", color: "#b0b0b0", coords: [[43.50, -104.90], [43.50, -104.05], [42.60, -104.05], [42.60, -104.90]] },
+      { name: "Carbon", color: "#b0b0b0", coords: [[42.40, -107.50], [42.40, -106.10], [41.00, -106.10], [41.00, -107.50]] },
+      { name: "Albany", color: "#f7fbff", coords: [[42.40, -106.10], [42.40, -105.25], [41.00, -105.25], [41.00, -106.10]] },
+      { name: "Laramie", color: "#f7fbff", coords: [[41.65, -105.25], [41.65, -104.05], [41.00, -104.05], [41.00, -105.25]] }
+    ];
+
+    let countyLayers = [];
+    wyomingCounties.forEach(c => {
+      const poly = L.polygon(c.coords, {
+        color: '#222222',
+        weight: 1.2,
+        fillColor: c.color,
+        fillOpacity: 0.78
+      }).addTo(map);
+      poly.bindPopup(`<strong>${c.name} County</strong><br>Click to inspect surveillance metrics.`);
+      countyLayers.push(poly);
+    });
+
+    function switchMapLayer(layerType, btn) {
+      document.querySelectorAll('.map-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const titles = {
+        effort: 'Total Survey Time (hrs)',
+        ticks: 'Total Ticks Collected',
+        pathogens: 'Positive Pathogen Detections'
+      };
+      document.getElementById('legend-title').textContent = titles[layerType];
+
+      // Subtle color shift on layer toggle for testing chatbot interactions
+      const palette = layerType === 'effort'
+        ? ['#5c88b8', '#8cb9d8', '#cfe1f2', '#f7fbff', '#b0b0b0']
+        : layerType === 'ticks'
+        ? ['#15534c', '#2e7d73', '#6ab0a7', '#cbe5e1', '#b0b0b0']
+        : ['#8c2d04', '#d94801', '#fd8d3c', '#feedde', '#b0b0b0'];
+
+      countyLayers.forEach((poly, i) => {
+        poly.setStyle({ fillColor: palette[i % palette.length] });
+      });
+    }
+  </script>
+
+  <!-- ========================================================= -->
+  <!-- PASTE YOUR CHATBOT WIDGET EMBED SCRIPT RIGHT BELOW HERE   -->
+  <!-- ========================================================= -->
+
+</body>
+</html>
